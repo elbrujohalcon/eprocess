@@ -1,0 +1,2 @@
+This library provides a *very* basic support for processes with message queues.  It was built using channels and MVars.
+See http://hackage.haskell.org/package/eprocess
