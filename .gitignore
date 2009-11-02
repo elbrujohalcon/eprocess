@@ -3,3 +3,4 @@
 .settings
 out
 dist
+.DS_Store
