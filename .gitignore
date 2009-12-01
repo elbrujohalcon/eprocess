@@ -4,3 +4,4 @@
 out
 dist
 .DS_Store
+.dist-scion

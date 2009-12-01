@@ -9,8 +9,8 @@ module Control.Concurrent.Process (
 -- * Types
         ReceiverT, Handle, Process, 
 -- * Functions
--- ** Process creation 
-        makeProcess, runHere, spawn,
+-- ** Process creation / destruction
+        makeProcess, runHere, spawn, kill,
 -- ** Message passing
         self, sendTo, recv, sendRecv
     ) where
@@ -26,7 +26,8 @@ import Control.Concurrent.Chan
 
 -- | A Process handle.  It's returned on process creation and should be used
 -- | afterwards to send messages to it
-newtype Handle r = PH {chan :: Chan r}
+data Handle r = PH {chan     :: Chan r,
+                    thread   :: ThreadId}
 
 -- | The /ReceiverT/ generic type.
 -- 
@@ -49,6 +50,14 @@ sendTo :: MonadIO m => Handle a -- ^ The receiver process handle
         -> a                    -- ^ The message to send
         -> m ()
 sendTo ph = liftIO . writeChan (chan ph)
+
+-- | /kill/ lets you *brutally* terminate a running process. Usage:
+-- @
+--      kill processHandle
+-- @
+kill :: MonadIO m => Handle a -- ^ The handle of process to kill
+        -> m ()
+kill = liftIO . killThread . thread
 
 -- | /recv/ lets you receive a message in a running process (it's a blocking receive). Usage:
 -- @
@@ -74,10 +83,11 @@ spawn :: MonadIO m => Process r k       -- ^ The process to be run
         -> m (Handle r)                 -- ^ The handle for that process
 spawn p = liftIO $ do
                  pChan <- newChan
-                 let handle = PH { chan = pChan }
-                 let action = runReaderT (internalReader p) handle
-                 forkIO $ action >> return ()
-                 return handle
+                 pThread <- forkIO $ do
+                                         t <- myThreadId
+                                         runReaderT (internalReader p) $ PH pChan t
+                                         return ()
+                 return $ PH pChan pThread
 
 -- | /runHere/ executes process code in the current environment. Usage:
 -- @
@@ -85,7 +95,10 @@ spawn p = liftIO $ do
 -- @
 runHere :: MonadIO m => Process r t     -- ^ The process to be run
          -> m t                         -- ^ It's returned as an action
-runHere p = liftIO (runReaderT (internalReader p) . PH =<< newChan)
+runHere p = liftIO $ do
+                        c <- newChan
+                        t <- myThreadId
+                        runReaderT (internalReader p) $ PH c t
 
 -- | /self/ returns the handle of the current process. Usage:
 -- @
