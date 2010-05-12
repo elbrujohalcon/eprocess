@@ -1,5 +1,5 @@
 name: eprocess
-version: 1.1.1
+version: 1.1.2
 cabal-version: >=1.6
 build-type: Simple
 license: BSD3
@@ -13,7 +13,7 @@ synopsis: *Very* basic Erlang-like process support for Haskell
 description: This library provides a *very* basic support for processes with message queues.  It was built using channels, threads and MVars. Since version 1.1.0 you can also kill a running process.
 category: Concurrency
 author: Fernando "Brujo" Benavides
-tested-with: GHC ==6.10.3, GHC ==6.10.4
+tested-with: GHC ==6.12.1
 data-files: LICENSE README
 data-dir: ""
 extra-source-files: Setup.hs
@@ -26,7 +26,7 @@ source-repository head
 Library
     build-depends: base >= 4,                   base < 5,
                    mtl >=1.1.0,                 mtl < 1.2,
-                   MonadCatchIO-mtl >= 0.1.0,   MonadCatchIO-mtl < 0.3
+                   MonadCatchIO-mtl >= 0.1.0,   MonadCatchIO-mtl < 0.4
     exposed-modules: Control.Concurrent.Process
     hs-source-dirs: src
     
