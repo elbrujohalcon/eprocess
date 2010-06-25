@@ -12,7 +12,7 @@ module Control.Concurrent.Process (
 -- ** Process creation / destruction
         makeProcess, runHere, spawn, kill,
 -- ** Message passing
-        self, sendTo, recv, sendRecv
+        self, sendTo, recv, recvIn, sendRecv
     ) where
 
 import Control.Monad.Reader
@@ -22,7 +22,6 @@ import Control.Monad.Error.Class
 import Control.Monad.CatchIO
 import Data.Monoid
 import Control.Concurrent
-import Control.Concurrent.Chan
 
 -- | A Process handle.  It's returned on process creation and should be used
 -- | afterwards to send messages to it
@@ -66,6 +65,29 @@ kill = liftIO . killThread . thread
 recv :: MonadIO m => ReceiverT r m r
 recv = RT $ ask >>= liftIO . readChan . chan
 
+-- | Just like /recv/ but with a timeout parameter. Usage:
+-- @
+--      maybeMessage <- recv
+-- @
+recvIn :: MonadIO m => Int    -- ^ milliseconds to wait until timeout
+        -> ReceiverT r m (Maybe r)
+recvIn ms = RT $
+    do
+            ch <- ask >>= return . chan
+            liftIO $ do
+                        tmp <- newEmptyMVar
+                        timer <- if ms > 0
+                                    then forkIO $ do
+                                                    let its = [1..10] :: [Int]
+                                                    forM_ its $ \_ -> threadDelay $ ms * 100
+                                                    putMVar tmp Nothing
+                                    else forkIO $ putMVar tmp Nothing
+                        runner <- forkIO $ readChan ch >>= putMVar tmp . Just
+                        res <- takeMVar tmp
+                        killThread timer
+                        killThread runner
+                        return res
+
 -- | /sendRecv/ is just a syntactic sugar for:
 -- @
 --      sendTo h a >> recv
@@ -85,7 +107,7 @@ spawn p = liftIO $ do
                  pChan <- newChan
                  pThread <- forkIO $ do
                                          t <- myThreadId
-                                         runReaderT (internalReader p) $ PH pChan t
+                                         _ <- runReaderT (internalReader p) $ PH pChan t
                                          return ()
                  return $ PH pChan pThread
 
